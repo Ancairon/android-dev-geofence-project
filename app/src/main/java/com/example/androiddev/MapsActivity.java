@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
+import androidx.room.Room;
 
 import android.Manifest;
 import android.app.PendingIntent;
@@ -12,6 +13,7 @@ import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.Toast;
 
 import com.google.android.gms.location.Geofence;
@@ -28,6 +30,8 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.example.androiddev.databinding.ActivityMapsBinding;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+
+import java.util.List;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMapLongClickListener {
 
@@ -47,6 +51,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private ActivityMapsBinding binding;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -62,6 +67,29 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         geofencingClient = LocationServices.getGeofencingClient(this);
         geofenceHelper = new GeofenceHelper(this);
+
+
+        findViewById(R.id.button).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                CoordDatabase db = Room.databaseBuilder(getApplicationContext(),
+                        CoordDatabase.class, "Coords").build();
+
+                CoordDao coordDao = db.coordDao();
+                Thread t = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        int i = 0;
+                        for (Coord coord : coordDao.getAll()
+                        ) {
+                            Log.d("Button", "" + i++ + " action:" + coord.getAction());
+                        }
+                    }
+                });
+                t.start();
+
+            }
+        });
     }
 
     /**
@@ -87,7 +115,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             mMap.setMyLocationEnabled(true);
         } else {
             //Ask for permission
-            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_ACCESS_REQUEST_CODE);
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_ACCESS_REQUEST_CODE);
         }
     }
 
@@ -138,7 +166,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private void addGeofence(LatLng latLng, float radius) {
 
-        Geofence geofence = geofenceHelper.getGeofence(GEOFENCE_ID, latLng, radius, Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_DWELL | Geofence.GEOFENCE_TRANSITION_EXIT);
+        Geofence geofence = geofenceHelper.getGeofence(GEOFENCE_ID, latLng, radius, Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT);
         GeofencingRequest geofencingRequest = geofenceHelper.getGeofencingRequest(geofence);
         PendingIntent pendingIntent = geofenceHelper.getPendingIntent();
 
