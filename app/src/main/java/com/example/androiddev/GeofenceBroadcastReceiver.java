@@ -74,6 +74,7 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
 
                     coordDao.insertAll(coord);
                     Log.d("DB", "" + coord.getAction());
+                    db.close();
                 });
                 t.start();
 
@@ -88,7 +89,7 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
 
                     coordDao.insertAll(coord);
                     Log.d("DB", "" + coord.getAction());
-
+                    db.close();
                 });
                 t.start();
                 break;
