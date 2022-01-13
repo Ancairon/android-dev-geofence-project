@@ -1,5 +1,7 @@
 package com.example.androiddev;
 
+import android.database.Cursor;
+
 import androidx.room.Dao;
 import androidx.room.Delete;
 import androidx.room.Insert;
@@ -10,14 +12,17 @@ import java.util.List;
 @Dao
 public interface CoordDao {
 
-    @Query("SELECT * FROM Coord")
+    @Query("SELECT * FROM coord")
     List<Coord> getAll();
+
+    @Query("SELECT * FROM coord")
+    Cursor getCursorAll();
 
     //@Query("SELECT * FROM Coord WHERE uid IN (:userIds)")
     //List<User> loadAllByIds(int[] userIds);
 
-   // @Query("SELECT * FROM user WHERE first_name LIKE :first AND " +
-     //       "last_name LIKE :last LIMIT 1")
+    // @Query("SELECT * FROM user WHERE first_name LIKE :first AND " +
+    //       "last_name LIKE :last LIMIT 1")
     //User findByName(String first, String last);
 
     @Insert

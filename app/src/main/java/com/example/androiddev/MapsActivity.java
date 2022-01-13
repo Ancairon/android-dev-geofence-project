@@ -4,13 +4,18 @@ import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
+import androidx.loader.content.CursorLoader;
 import androidx.room.Room;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.PendingIntent;
+import android.content.ContentResolver;
+import android.content.Context;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -36,6 +41,12 @@ import java.util.List;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMapLongClickListener {
 
+    private static Context context;
+
+    public static Context getContext() {
+        return context;
+    }
+
 
     private static final String TAG = "MapsActivity";
 
@@ -57,6 +68,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        context = this;
+
         binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
@@ -69,6 +82,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         geofencingClient = LocationServices.getGeofencingClient(this);
         geofenceHelper = new GeofenceHelper(this);
 
+        final ContentResolver resolver = this.getContentResolver();
 
         findViewById(R.id.button).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -77,17 +91,37 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         CoordDatabase.class, "Coords").build();
 
                 CoordDao coordDao = db.coordDao();
-                Thread t = new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        int i = 0;
-                        for (Coord coord : coordDao.getAll()
-                        ) {
-                            Log.d("Button", "" + i++ + " action:" + coord.getAction());
-                        }
-                        db.close();
+                Thread t = new Thread(() -> {
+                    int i = 0;
+                    for (Coord coord : coordDao.getAll()
+                    ) {
+                        Log.d("Button", "" + i++ + " action:" + coord.getAction());
                     }
+
+                    Uri uri = Uri.parse("content://com.example.androiddev/coord");
+                    final String[] projection = new String[]{"id", "lat", "lon", "action", "timestamp"};
+                    //uri = "content://gr.dit.hua.android.DBExample/contacts"
+
+                    try (Cursor cursor = resolver.query(uri, null, null, null, null)) {
+                        if (cursor.moveToFirst()) {
+
+                            int id = cursor.getInt(0);
+
+                            double lat = cursor.getDouble(1);
+
+                            double lon = cursor.getDouble(2);
+
+                            int action = cursor.getInt(3);
+
+                            long timestamp = cursor.getLong(4);
+
+                            Log.d("AHHH",""+timestamp);
+                        }
+                    }
+
+                    db.close();
                 });
+
                 t.start();
 
             }
