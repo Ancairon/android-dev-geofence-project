@@ -167,17 +167,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_ACCESS_REQUEST_CODE);
             }
 
-        }
-
-        if (requestCode == BACKGROUND_LOCATION_ACCESS_REQUEST_CODE) {
+        }else if (requestCode == BACKGROUND_LOCATION_ACCESS_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 //We have the permission
                 Toast.makeText(this, "You can add geofences...", Toast.LENGTH_SHORT).show();
+                mMap.setMyLocationEnabled(true);
+
             } else {
                 //We do not have the permission..
                 Toast.makeText(this, "Background location access is neccessary for geofences to trigger...", Toast.LENGTH_SHORT).show();
             }
         }
+        mMap.clear();
     }
 
     @Override
