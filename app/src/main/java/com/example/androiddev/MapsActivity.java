@@ -5,6 +5,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -15,9 +16,13 @@ import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.FragmentActivity;
 
 import com.example.androiddev.databinding.ActivityMapsBinding;
+import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofencingClient;
 import com.google.android.gms.location.GeofencingRequest;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -26,7 +31,7 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMapLongClickListener {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private static Context context;
 
@@ -34,24 +39,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return context;
     }
 
-
     private static final String TAG = "MapsActivity";
-
     private GoogleMap mMap;
     private GeofencingClient geofencingClient;
     private GeofenceHelper geofenceHelper;
-
-    private final float GEOFENCE_RADIUS = 10;
+    private ActivityMapsBinding binding;
+    private final float GEOFENCE_RADIUS = 50;
     private final String GEOFENCE_ID = "SOME_GEOFENCE_ID";
 
-    private final int FINE_LOCATION_ACCESS_REQUEST_CODE = 10001;
-    private final int BACKGROUND_LOCATION_ACCESS_REQUEST_CODE = 10002;
+    private final int INITIAL_REQUEST_CODE = 3;
+    private final int FINE_LOCATION_ACCESS_REQUEST_CODE = 1;
+    private final int BACKGROUND_LOCATION_ACCESS_REQUEST_CODE = 2;
 
-    private boolean doIHavePermission = false;
-
-
-    private ActivityMapsBinding binding;
-
+    private boolean doIHaveFinePermission = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,47 +59,52 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         context = this;
 
-        binding = ActivityMapsBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+        //Up until 25/1/2022, requesting the permission after the map is initialized,
+        //results in the emulator not tracking the location at first launch.
+        requestFineLocation();
 
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.map);
-        assert mapFragment != null;
-        mapFragment.getMapAsync(this);
 
-        requestPermissions();
+    }
 
-        geofencingClient = LocationServices.getGeofencingClient(this);
-        geofenceHelper = new GeofenceHelper(this);
+    private void requestFineLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            //Ask for permission, this is checked every time the app launches to see if it has the permission to show the blue dot on the map.
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, INITIAL_REQUEST_CODE);
+        }
     }
 
     @Override
-    public void onMapReady(GoogleMap googleMap) {
+    public void onMapReady(@NonNull GoogleMap googleMap) {
+
+        //Initialize the map
         mMap = googleMap;
+        //Use the zoom controls to make it easier on the emulator
         mMap.getUiSettings().setZoomControlsEnabled(true);
 
-        enableUserLocation();
+        checkPermissions();
 
-        mMap.setOnMapLongClickListener(this);
-    }
-
-    private void requestPermissions() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                //mMap.setMyLocationEnabled(true);
-                doIHavePermission = true;
+        mMap.setOnMapLongClickListener(latLng -> {
+            if (Build.VERSION.SDK_INT >= 29) {
+                //We need to request background permission
+                if (ActivityCompat.checkSelfPermission(MapsActivity.this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    //If the user has already granted the permission, handle his click
+                    handleMapLongClick(latLng);
+                } else {
+                    //else request that permission along with an informative toast
+                    ActivityCompat.requestPermissions(MapsActivity.this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, BACKGROUND_LOCATION_ACCESS_REQUEST_CODE);
+                    Toast.makeText(MapsActivity.this, "Background location access is necessary for Geofences to trigger...", Toast.LENGTH_LONG).show();
+                }
+            } else {
+                //if the API is lower than 29, we already got background permission with the fine location access, so handle the click
+                handleMapLongClick(latLng);
             }
-        } else {
-            //Ask for permission
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_ACCESS_REQUEST_CODE);
-            //    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, BACKGROUND_LOCATION_ACCESS_REQUEST_CODE);
-        }
-
+        });
     }
 
-    private void enableUserLocation() {
-        if (doIHavePermission) {
+    private void checkPermissions() {
+        //if we got the permissions we need, enable the location.
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            doIHaveFinePermission = true;
             mMap.setMyLocationEnabled(true);
         }
     }
@@ -107,37 +112,45 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == FINE_LOCATION_ACCESS_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                //We have the permission
-                Toast.makeText(this, "Long press and select \"Allow all the time\" to start adding geofences :)", Toast.LENGTH_SHORT).show();
-            }
 
-        } else if (requestCode == BACKGROUND_LOCATION_ACCESS_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                //We have the permission
-                Toast.makeText(this, "You can add geofences...", Toast.LENGTH_SHORT).show();
-                requestPermissions();
-                enableUserLocation();
-            }
-        }
-        mMap.clear();
-    }
+        switch (requestCode) {
+            case FINE_LOCATION_ACCESS_REQUEST_CODE:
+                //If I got a fine location permission, guide the user to assign also the background location permission
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    //We have the permission
+                    Toast.makeText(this, "Long press and select \"Allow all the time\" to start adding geofences :)", Toast.LENGTH_LONG).show();
+                }
+            case BACKGROUND_LOCATION_ACCESS_REQUEST_CODE:
+                /*
+                if I got a background location permission, then the user long clicked,
+                so I check the permissions just to make sure and enable the location and I also Toast a message.
+                 */
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    //We have the permission
+                    checkPermissions();
+                    Toast.makeText(this, "You can add geofences...", Toast.LENGTH_SHORT).show();
 
-    @Override
-    public void onMapLongClick(@NonNull LatLng latLng) {
-        if (Build.VERSION.SDK_INT >= 29) {
-            //We need background permission
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                handleMapLongClick(latLng);
-            } else {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, BACKGROUND_LOCATION_ACCESS_REQUEST_CODE);
-                Toast.makeText(this, "Background location access is neccessary for geofences to trigger...", Toast.LENGTH_SHORT).show();
-            }
-        } else {
-            handleMapLongClick(latLng);
+                }
+            case INITIAL_REQUEST_CODE:
+                //When the user grants fine location upon launch, enable the flag for the map to read when it is ready.
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    //We have the permission
+                    doIHaveFinePermission = true;
+//Layout stuff initialization
+                    binding = ActivityMapsBinding.inflate(getLayoutInflater());
+                    setContentView(binding.getRoot());
+                    // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+                    SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                            .findFragmentById(R.id.map);
+                    assert mapFragment != null;
+                    mapFragment.getMapAsync(this);
+                    //Initialize the geofence stuff
+                    geofencingClient = LocationServices.getGeofencingClient(this);
+                    geofenceHelper = new GeofenceHelper(this);
+                }
         }
-        handleMapLongClick(latLng);
+
+        //mMap.clear();
 
     }
 
