@@ -148,10 +148,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             case INITIAL_REQUEST_CODE:
                 //When the user grants fine location upon launch, enable the flag for the map to read when it is ready.
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    //if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                        //We have the permission so initialize the map
-                        initMap();
-                    //}
+                    //We have the permission so initialize the map
+                    initMap();
                 }
                 break;
         }
