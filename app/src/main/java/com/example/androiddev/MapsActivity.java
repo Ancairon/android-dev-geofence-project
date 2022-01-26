@@ -59,6 +59,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private void requestFineLocation() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             //Ask for permission, this is checked every time the app launches to see if it has the permission to show the blue dot on the map.
+            Toast.makeText(MapsActivity.this, "Please give the \"While using the app\n permission for the app to work", Toast.LENGTH_LONG).show();
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, INITIAL_REQUEST_CODE);
             return;
         }
@@ -91,7 +92,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             } else {
                 //else request that permission along with an informative toast
                 ActivityCompat.requestPermissions(MapsActivity.this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, BACKGROUND_LOCATION_ACCESS_REQUEST_CODE);
-                Toast.makeText(MapsActivity.this, "Background location access is necessary for Geofences to trigger...", Toast.LENGTH_LONG).show();
+                Toast.makeText(MapsActivity.this, "Background location access is necessary for Geofences to trigger", Toast.LENGTH_LONG).show();
             }
         } else {
             //if the API is lower than 29, we already got background permission with the fine location access, so handle the click
@@ -142,12 +143,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     //We have the permission
                     //checkPermissions();
-                    Toast.makeText(this, "You can add geofences...", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "You can add geofences!", Toast.LENGTH_SHORT).show();
                 }
                 break;
             case INITIAL_REQUEST_CODE:
                 //When the user grants fine location upon launch, enable the flag for the map to read when it is ready.
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "Long press and select \"Allow all the time\" to start adding geofences :)", Toast.LENGTH_LONG).show();
                     //We have the permission so initialize the map
                     initMap();
                 }
