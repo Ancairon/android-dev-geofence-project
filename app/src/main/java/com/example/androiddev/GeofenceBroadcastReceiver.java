@@ -16,30 +16,24 @@ import java.util.List;
 
 public class GeofenceBroadcastReceiver extends BroadcastReceiver {
 
-    private static final String TAG = "GeofenceBroadcastReceiv";
-
+    private static final String TAG = "GeofenceBroadcastR";
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        // TODO: This method is called when the BroadcastReceiver is receiving
+        // This method is called when the BroadcastReceiver is receiving
         // an Intent broadcast.
         Toast.makeText(context, "Geofence triggered...", Toast.LENGTH_LONG).show();
 
-        //  NotificationHelper notificationHelper = new NotificationHelper(context);
-
-
+        //make a db object
         CoordDatabase db = Room.databaseBuilder(context,
                 CoordDatabase.class, "Coords").build();
 
         CoordDao coordDao = db.coordDao();
-        // List<Coord> coords = coordDao.getAll();
         Coord coord = new Coord();
 
         Location location;
 
-
-        //    coordDao.insertAll(coord);
-
+        //Get the Geofencing event from the Intent
         GeofencingEvent geofencingEvent = GeofencingEvent.fromIntent(intent);
 
         if (geofencingEvent.hasError()) {
@@ -47,17 +41,13 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
             return;
         }
 
-
+        //This should Iterate just once, but just in case I use it for debugging reasons
         List<Geofence> geofenceList = geofencingEvent.getTriggeringGeofences();
         for (Geofence geofence : geofenceList) {
-
-
             Log.d(TAG, "onReceive: " + geofence.getRequestId());
         }
-//        Location location = geofencingEvent.getTriggeringLocation();
 
         int transitionType = geofencingEvent.getGeofenceTransition();
-
 
         location = geofencingEvent.getTriggeringLocation();
         coord.setLat(location.getLatitude());
@@ -66,12 +56,12 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
         coord.setAction(geofencingEvent.getGeofenceTransition());
         Thread t;
 
+        //Determine the transition type, and insert the event in the database.
         switch (transitionType) {
             case Geofence.GEOFENCE_TRANSITION_ENTER:
                 Toast.makeText(context, "GEOFENCE_TRANSITION_ENTER", Toast.LENGTH_SHORT).show();
 
                 t = new Thread(() -> {
-
                     coordDao.insertAll(coord);
                     Log.d("DB", "" + coord.getAction());
                     db.close();
@@ -79,19 +69,17 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
                 t.start();
 
                 break;
-//            case Geofence.GEOFENCE_TRANSITION_DWELL:
-            //              Toast.makeText(context, "GEOFENCE_TRANSITION_DWELL", Toast.LENGTH_SHORT).show();
-            // notificationHelper.sendHighPriorityNotification("GEOFENCE_TRANSITION_DWELL", "", MapsActivity.class);
-            //            break;
+
             case Geofence.GEOFENCE_TRANSITION_EXIT:
                 Toast.makeText(context, "GEOFENCE_TRANSITION_EXIT", Toast.LENGTH_SHORT).show();
-                t = new Thread(() -> {
 
+                t = new Thread(() -> {
                     coordDao.insertAll(coord);
                     Log.d("DB", "" + coord.getAction());
                     db.close();
                 });
                 t.start();
+
                 break;
         }
 
